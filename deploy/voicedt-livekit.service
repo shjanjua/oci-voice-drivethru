@@ -1,0 +1,14 @@
+[Unit]
+Description=VoiceDT LiveKit server (self-hosted SFU)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/voice-order
+ExecStart=/usr/local/bin/livekit-server --config /home/ubuntu/voice-order/deploy/livekit.yaml
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

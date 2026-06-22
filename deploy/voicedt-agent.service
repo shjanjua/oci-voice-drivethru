@@ -1,0 +1,16 @@
+[Unit]
+Description=VoiceDT Agent — LiveKit worker (OCI cascade brain, auto-dispatch)
+After=network.target voicedt-livekit.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/voice-order
+EnvironmentFile=/home/ubuntu/voice-order/.env
+ExecStart=/home/ubuntu/voice-order/.venv/bin/python -m agent.main start
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

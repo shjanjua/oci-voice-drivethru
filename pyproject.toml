@@ -1,0 +1,35 @@
+[project]
+name = "voice-order"
+version = "0.1.0"
+description = "Voice drive-thru ordering agent — an exclusive OCI cascade (OCI Speech STT + OCI GenAI LLM + OCI Grok TTS) on LiveKit"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    # --- LiveKit core + plugins. The `openai` extra is the OpenAI-compatible client used to reach
+    #     OCI Generative AI's LLM endpoint (NOT OpenAI the vendor); silero = VAD, turn-detector = endpointing.
+    "livekit-agents[openai,silero,turn-detector]==1.5.17",
+    # --- OCI: Speech (STT) + Generative AI websockets (Grok TTS, realtime LLM transport) ---
+    "oci>=2.164",
+    "oci-ai-speech-realtime>=2.2",
+    "websockets>=12",
+    # --- membership / Oracle ADB ---
+    "oracledb>=2.0",
+    # --- web backend: token mint, menu, QR sign-up ---
+    "fastapi",
+    "uvicorn[standard]",
+    # --- config & env ---
+    "pydantic-settings>=2",
+    "python-dotenv",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "aiohttp>=3", "playwright>=1.4"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "integration: hits live OCI services (needs keys + network; excluded by default)",
+]
+
+[tool.uv]
+package = false  # application, not a distributable package — install deps only

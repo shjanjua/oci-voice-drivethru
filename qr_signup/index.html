@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Oracle Coffee — Join</title>
+<style>
+  :root{--cream:#F5DEBD;--teal:#467173;--teal-lt:#89B2B0;--navy:#1B4550;--red:#FE6954;--sienna:#DEB068}
+  *{box-sizing:border-box} html,body{margin:0;min-height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+       background:radial-gradient(900px 600px at 50% 0%, #fbf1dd, var(--cream)); color:var(--navy);
+       display:flex; align-items:center; justify-content:center; min-height:100vh; padding:22px}
+  .card{background:#fffaf0; border-radius:22px; box-shadow:0 24px 60px rgba(27,69,80,.22);
+        max-width:440px; width:100%; padding:34px 30px; border-top:8px solid var(--red)}
+  .brand{font-weight:800; letter-spacing:.5px; color:var(--navy); font-size:22px}
+  .brand small{display:block; font-weight:600; color:var(--teal); letter-spacing:2px; font-size:11px}
+  h1{font-size:25px; margin:14px 0 4px} p.sub{color:#8a7b5e; margin:0 0 20px; font-size:15px}
+  label{display:block; font-weight:600; margin:14px 0 6px; font-size:14px; color:var(--teal)}
+  input,select{width:100%; padding:13px 14px; border:1.5px solid #e3d3ad; border-radius:12px; font-size:16px; background:#fff}
+  input:disabled{background:#f0e7d2; color:#9a8a6a}
+  button{margin-top:24px; width:100%; background:var(--red); color:#fff; border:0; padding:16px; font-size:18px;
+         font-weight:700; border-radius:40px; cursor:pointer; box-shadow:0 12px 28px rgba(254,105,84,.35)}
+  button:disabled{opacity:.6}
+  .done{text-align:center} .code{font-size:58px; font-weight:800; letter-spacing:6px; color:var(--red); margin:14px 0}
+  .done .hint{color:var(--teal); font-size:16px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div id="form">
+      <div class="brand">ORACLE<small>AI · COFFEE</small></div>
+      <h1>Join for a personalised order</h1>
+      <p class="sub">Scan, sign up, and the barista greets you by name — with a birthday treat on us.</p>
+      <label>Your name</label>
+      <input id="name" placeholder="e.g. James Okafor" autocomplete="off" />
+      <label>How do you say it? (optional)</label>
+      <input id="pron" placeholder="e.g. JAY-mss oh-KAH-for" autocomplete="off" />
+      <label>Preferred language</label>
+      <select id="lang">
+        <option value="en">English</option><option value="es">Español</option>
+        <option value="fr">Français</option><option value="hi">हिन्दी</option><option value="de">Deutsch</option>
+      </select>
+      <label>Date of birth 🎉</label>
+      <input id="dob" type="text" disabled value="Today — happy birthday!" />
+      <button id="go">Get my member number</button>
+    </div>
+    <div id="result" class="done hidden">
+      <div class="brand">ORACLE<small>AI · COFFEE</small></div>
+      <h1 id="welcome">Welcome!</h1>
+      <p class="sub">Your member number — tell the barista:</p>
+      <div class="code" id="code">----</div>
+      <p class="hint">Walk up to the booth and just say it. 🎂</p>
+    </div>
+  </div>
+<script>
+  const API = location.pathname.replace(/\/signup\/?$/, '') + '/api';
+  const $ = (id) => document.getElementById(id);
+  $('go').addEventListener('click', async () => {
+    const name = $('name').value.trim();
+    if (!name){ $('name').focus(); return; }
+    $('go').disabled = true; $('go').textContent = 'One moment…';
+    try{
+      const r = await fetch(API + '/signup', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name, pronunciation:$('pron').value.trim(), language:$('lang').value})});
+      if(!r.ok) throw new Error(await r.text());
+      const d = await r.json();
+      $('welcome').textContent = `Welcome, ${d.name.split(' ')[0]}!`;
+      $('code').textContent = d.membership_number;
+      $('form').classList.add('hidden'); $('result').classList.remove('hidden');
+    }catch(e){
+      $('go').disabled = false; $('go').textContent = 'Get my member number';
+      alert('Sorry, something went wrong. Please try again.');
+    }
+  });
+</script>
+</body>
+</html>

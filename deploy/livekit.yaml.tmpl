@@ -1,0 +1,14 @@
+# Self-hosted LiveKit server for the voice drive-thru (rendered by setup_vm.sh).
+# Signaling on localhost:7880 (nginx proxies wss /voice-drivethru/rtc -> here).
+# Media (WebRTC) reaches the client directly over the VM public IP:
+#   OCI security list MUST allow inbound UDP 7882 + TCP 7881.
+port: 7880
+# bind all interfaces: signaling :7880 is NOT in the OCI security list (nginx reaches it on
+# loopback), while the RTC media ports 7881/7882 MUST bind 0.0.0.0 to be externally reachable.
+log_level: info
+keys:
+  __LIVEKIT_API_KEY__: __LIVEKIT_API_SECRET__
+rtc:
+  use_external_ip: true
+  tcp_port: 7881
+  udp_port: 7882

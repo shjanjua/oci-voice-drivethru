@@ -1,0 +1,29 @@
+# secrets & creds — NEVER commit
+.env
+.env.*
+!.env.example
+wallet/
+*.pem
+*.p12
+*.jks
+cwallet.sso
+*_wallet.zip
+.oci/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# node / frontend
+node_modules/
+frontend/dist/
+qr_signup/dist/
+
+# misc
+.DS_Store
+*.log
+logs/
+.playwright-mcp/

@@ -1,0 +1,40 @@
+# Additive location block for oracle-aicoe.com (included inside the existing server{}).
+# Web backend (voicedt-web) on :7871; self-hosted LiveKit signaling on :7880.
+
+# LiveKit WebSocket signaling — the JS SDK connects to <public_url>/rtc, so the
+# browser hits /voice-drivethru/rtc; strip the prefix so LiveKit sees /rtc.
+location /voice-drivethru/rtc {
+    rewrite ^/voice-drivethru/(.*)$ /$1 break;
+    proxy_pass http://127.0.0.1:7880;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_read_timeout 600s;
+    proxy_send_timeout 600s;
+}
+
+# Web backend API (token mint, menu, sign-up)
+location /voice-drivethru/api/ {
+    proxy_pass http://127.0.0.1:7871/api/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+# Pages
+# Printed QR codes point at /voice-order — send them to the signup page.
+# 302 (not 301) so phones don't cache it forever if the target ever changes.
+location = /voice-order  { return 302 /voice-drivethru/signup$is_args$args; }
+location = /voice-order/ { return 302 /voice-drivethru/signup$is_args$args; }
+location = /voice-drivethru { return 301 /voice-drivethru/; }
+location /voice-drivethru/signup  { proxy_pass http://127.0.0.1:7871/signup;  proxy_set_header Host $host; }
+location /voice-drivethru/ {
+    proxy_pass http://127.0.0.1:7871/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}

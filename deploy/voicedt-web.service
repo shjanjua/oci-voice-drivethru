@@ -1,0 +1,15 @@
+[Unit]
+Description=VoiceDT Web — token mint + kiosk/QR/control (port 7871)
+After=network.target voicedt-livekit.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/voice-order
+EnvironmentFile=/home/ubuntu/voice-order/.env
+ExecStart=/home/ubuntu/voice-order/.venv/bin/uvicorn web.server:app --host 127.0.0.1 --port 7871
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

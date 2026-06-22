@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Oracle Coffee — Drive-Thru</title>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"></script>
+<style>
+  :root{
+    --canvas:#f3e8d2; --panel:#f8efd9; --teal-panel:#c7dfdf; --border:#deb79c;
+    --teal:#467173; --teal-lt:#89b2b0; --navy:#1b4550; --red:#d3452f;
+    --sienna:#deb068; --ink:#262322; --muted:#6b6258; --green:#467146;
+    --surface:rgba(255,255,255,.72); --surface-strong:rgba(255,255,255,.9);
+    --shadow:0 22px 70px rgba(49,45,42,.14); --soft-shadow:0 12px 32px rgba(49,45,42,.1);
+  }
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{min-width:360px; min-height:100vh; overflow:auto; display:flow-root; color:var(--ink);
+       font-family:"Oracle Sans","Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+       background:
+         linear-gradient(rgba(236,134,106,.34) 1px, transparent 1px),
+         linear-gradient(90deg, rgba(236,134,106,.34) 1px, transparent 1px),
+         linear-gradient(180deg, var(--canvas) 0 58%, var(--teal-panel) 58% 100%);
+       background-size:36px 36px, 36px 36px, 100% 100%;
+       -webkit-font-smoothing:antialiased}
+  button{font:inherit; cursor:pointer} button:disabled{cursor:not-allowed; opacity:.62}
+  .particles{position:fixed; right:-32px; bottom:-42px; width:360px; height:520px; z-index:0; opacity:.18;
+       pointer-events:none; background:url('frontend/particles.svg') center/contain no-repeat; transform:rotate(-14deg)}
+  .kiosk-shell{position:relative; z-index:1; display:grid; grid-template-rows:auto minmax(0,1fr);
+       width:100%; height:100vh; height:100dvh; margin:0; padding:22px;
+       background:radial-gradient(circle at 88% 6%, rgba(240,204,113,.24), transparent 24%),
+                  linear-gradient(180deg, rgba(199,223,223,.88) 0%, rgba(248,239,217,.96) 72% 100%);
+       overflow:hidden}
+  .kiosk-shell::before{position:absolute; inset:-92px auto auto 48px; z-index:-1; width:190px; height:316px;
+       content:""; background:url('frontend/particles.svg') center/contain no-repeat; opacity:.18; transform:rotate(154deg)}
+  .screen-header{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 0 20px}
+  .brand-cluster{display:flex; align-items:center; gap:12px; min-width:0}
+  .brand-mark{display:grid; width:44px; height:44px; place-items:center; border-radius:8px; color:#fff;
+       background:var(--red); font-size:15px; font-weight:800}
+  .brand-title,.brand-subtitle{margin:0}.brand-title{font-size:19px; font-weight:850; line-height:1.1}
+  .brand-subtitle{margin-top:2px; color:var(--muted); font-size:13px; font-weight:700}
+  .status-chip{display:inline-flex; align-items:center; min-height:34px; max-width:clamp(180px,46vw,520px); padding:8px 12px;
+       border:1px solid rgba(0,122,150,.44); border-radius:999px; color:#005f73;
+       background:rgba(199,223,223,.82); box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);
+       font-size:13px; font-weight:800; line-height:1.2}
+  body.idle .status-chip{color:#8a4a2e; border-color:rgba(222,176,104,.58); background:rgba(248,239,217,.86)}
+  body.confirmed .status-chip{color:var(--green); border-color:rgba(76,130,92,.38); background:rgba(76,130,92,.12)}
+  .main-grid{display:grid; grid-template-columns:minmax(0,1fr) clamp(340px,28vw,460px);
+       grid-template-rows:auto minmax(0,1fr); grid-template-areas:"stage order" "menu order";
+       gap:clamp(12px,1.6vw,18px); align-items:stretch; min-height:0}
+  .stage,.order,.menu{position:relative; z-index:1; min-width:0}
+  .stage{grid-area:stage; display:grid; grid-template-rows:auto auto; gap:clamp(10px,1.4vw,16px); min-height:0}
+  .order{grid-area:order}
+  /* --- menu board: lives under the orb in the left column, always visible --- */
+  .menu{grid-area:menu; display:grid; grid-template-rows:auto minmax(0,1fr); gap:10px; min-height:0;
+       border:1px solid rgba(222,183,156,.72); border-radius:8px; background:rgba(255,255,255,.42);
+       backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); padding:clamp(12px,1.4vw,16px)}
+  .menu-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
+  .menu-head h2{margin:0; color:var(--ink); font-size:clamp(16px,1.6vw,20px); line-height:1.1}
+  .menu-sizes-note{color:var(--muted); font-size:clamp(10px,.85vw,12px); font-weight:750}
+  /* fit-to-viewport: 5 equal columns, rows share the height so all 10 cards fit (no scroll) */
+  .menu-grid{display:grid; grid-template-columns:repeat(5,1fr); grid-auto-rows:1fr;
+       gap:clamp(7px,.9vw,12px); min-height:0; height:100%; overflow:hidden}
+  .menu-card{position:relative; display:grid; grid-template-rows:minmax(0,1fr) auto; gap:6px; min-height:0;
+       padding:clamp(6px,.7vw,10px); border:1px solid rgba(222,183,156,.66); border-radius:8px;
+       background:rgba(255,255,255,.5); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+       transition:outline-color .18s, box-shadow .18s}
+  .menu-thumb{position:relative; min-height:0; display:grid; place-items:center; border-radius:8px; overflow:hidden;
+       padding:clamp(3px,.4vw,7px); background:radial-gradient(circle at 50% 38%, rgba(248,239,217,.92), rgba(199,223,223,.5));
+       border:1px solid rgba(222,183,156,.5)}
+  .menu-thumb img{width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 8px 18px rgba(199,70,52,.18))}
+  .order-tick{position:absolute; top:6px; right:6px; display:none; width:22px; height:22px; align-items:center;
+       justify-content:center; border-radius:999px; background:var(--green); color:#fff; font-size:13px; font-weight:900}
+  .oos-badge{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); padding:4px 10px; border-radius:999px;
+       background:rgba(248,239,217,.95); color:#8a4a2e; border:1px solid rgba(222,176,104,.6);
+       font-size:11px; font-weight:800; white-space:nowrap; box-shadow:var(--soft-shadow)}
+  .menu-name-row{display:flex; align-items:baseline; justify-content:space-between; gap:6px}
+  .menu-name{font-size:clamp(12px,1vw,14px); font-weight:900; color:var(--ink); line-height:1.15}
+  .menu-price{flex:0 0 auto; color:var(--navy); font-size:clamp(11px,.9vw,13px); font-weight:900; white-space:nowrap}
+  .menu-card.oos{opacity:.62}
+  .menu-card.oos .menu-thumb img{filter:grayscale(.85) saturate(.4)}
+  .menu-card.in-order{outline:2px solid var(--teal); outline-offset:1px; box-shadow:var(--soft-shadow)}
+  .menu-card.in-order .menu-thumb{background:radial-gradient(circle at 50% 38%, rgba(199,223,223,.95), rgba(137,178,176,.5))}
+  .menu-card.in-order .order-tick{display:inline-flex}
+  .voice-card,.order{border:1px solid rgba(222,183,156,.72); border-radius:8px; background:rgba(255,255,255,.5);
+       backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px)}
+  .voice-card{display:grid; align-content:center; justify-items:center; gap:clamp(8px,1.2vw,16px);
+       padding:clamp(12px,1.6vw,20px); overflow:hidden}
+  .orb{position:relative; width:clamp(84px, 8.5vw, 140px); aspect-ratio:1; container-type:size;
+       display:flex; align-items:center; justify-content:center;
+       background:url('frontend/oracle-o.png') center/contain no-repeat; transition:transform .25s;
+       filter:drop-shadow(0 18px 42px rgba(199,70,52,.22))}
+  /* waveform sized in cqmin (% of the orb) so it always stays inside the wide-short "O" hole */
+  .wave{position:relative; display:flex; align-items:center; justify-content:center; gap:2.5cqmin; height:30cqmin;
+       min-width:0; padding:0 2.5cqmin; border-radius:999px; background:rgba(248,239,217,.30)}
+  .wave i{width:3.5cqmin; height:8cqmin; border-radius:2cqmin; background:var(--teal); animation:idle 2.2s ease-in-out infinite}
+  .wave i:nth-child(2){animation-delay:.15s}.wave i:nth-child(3){animation-delay:.30s}
+  .wave i:nth-child(4){animation-delay:.45s}.wave i:nth-child(5){animation-delay:.60s}
+  .wave i:nth-child(6){animation-delay:.75s}.wave i:nth-child(7){animation-delay:.90s}
+  @keyframes idle{0%,100%{height:6cqmin}50%{height:11cqmin}}
+  body.speaking .wave i{background:var(--navy); animation:speak .5s ease-in-out infinite}
+  @keyframes speak{0%,100%{height:6cqmin}50%{height:26cqmin}}
+  body.speaking .orb{transform:scale(1.04)}
+  body.listening .wave i{background:var(--teal-lt)}
+  .wave.live i{animation:none !important; transition:height .07s linear}  /* JS audio-reactive */
+  .voice-copy{display:grid; gap:9px; justify-items:center; text-align:center}
+  .voice-copy h1{max-width:720px; margin:0; color:var(--navy); font-size:clamp(15px,1.7vw,22px); line-height:1.08}
+  .hint{max-width:760px; margin:0; color:var(--muted); font-size:15px; font-weight:650; line-height:1.45}
+  .control-row{display:flex; flex-wrap:wrap; justify-content:center; gap:12px}
+  .ptt,.endbtn,#overlay button{display:inline-flex; align-items:center; justify-content:center; gap:10px; min-height:48px;
+       border-radius:8px; font-size:15px; font-weight:850; user-select:none; touch-action:none}
+  .ptt{min-width:184px; padding:0 18px; border:1px solid rgba(0,122,150,.44); color:#005f73;
+       background:rgba(255,255,255,.86); box-shadow:var(--soft-shadow)}
+  .ptt.held{border-color:rgba(211,69,47,.5); color:#fff; background:var(--red)}
+  .endbtn{min-width:160px; padding:0 16px; border:1px solid rgba(211,69,47,.42); color:var(--red); background:rgba(255,255,255,.68)}
+  .endbtn.confirm{background:var(--red); color:#fff}
+  .endbtn[hidden]{display:none}
+  .button-icon{display:inline-block; width:22px; height:22px; flex:0 0 auto; background:currentColor}
+  .button-icon.mic{-webkit-mask:url('frontend/mic.png') center/contain no-repeat;
+       mask:url('frontend/mic.png') center/contain no-repeat}
+  .button-icon.reset{-webkit-mask:url('frontend/restart.png') center/contain no-repeat;
+       mask:url('frontend/restart.png') center/contain no-repeat}
+  body.isolating .wave i{background:var(--sienna)}
+  .order{display:grid; grid-template-rows:auto auto minmax(0,1fr) auto auto; gap:14px; min-height:0; padding:18px; overflow:hidden}
+  .order-head{display:flex; align-items:start; justify-content:space-between; gap:12px}
+  .order h2{margin:0; color:var(--ink); font-size:clamp(20px,2.2vw,24px); line-height:1.1}
+  .order-count{color:var(--muted); font-size:12px; font-weight:800; white-space:nowrap}
+  .member{display:none; gap:4px; padding:12px; border:1px solid rgba(76,130,92,.36); border-radius:8px;
+       color:var(--green); background:rgba(76,130,92,.1)}
+  .member.is-visible{display:grid}
+  .member strong{font-size:14px}.member span{color:var(--muted); font-size:12px; font-weight:750}
+  .empty-order{margin:0; padding:14px; border:1px dashed rgba(222,183,156,.84); border-radius:8px;
+       color:var(--muted); background:rgba(248,239,217,.58); font-size:13px; font-weight:700; line-height:1.4}
+  .empty-order[hidden]{display:none}
+  .lines{display:grid; align-content:start; gap:10px; min-height:0; margin:0; padding:0; overflow:auto; list-style:none; scrollbar-gutter:stable}
+  .lines li{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:center;
+       padding:12px; border:1px solid rgba(222,183,156,.66); border-radius:8px; background:rgba(255,255,255,.46)}
+  .line-qty{display:grid; width:34px; height:34px; place-items:center; border-radius:8px; color:#94482d;
+       background:var(--panel); font-size:13px; font-weight:900}
+  .line-main strong,.line-main span{display:block}
+  .line-main strong{font-size:15px; font-weight:900; overflow-wrap:anywhere}
+  .line-main span{margin-top:3px; color:var(--muted); font-size:12px; font-weight:700; line-height:1.35}
+  .line-price{justify-self:end; color:var(--navy); font-size:14px; font-weight:900; white-space:nowrap}
+  .lines li.free{border-color:rgba(76,130,92,.36); background:rgba(76,130,92,.1)}
+  .lines li.free .line-price{color:var(--green)}
+  .totals{display:grid; gap:8px; margin-top:0; padding-top:14px; border-top:1px solid var(--border)}
+  .totals .row{display:flex; justify-content:space-between; gap:12px; color:var(--muted); font-size:14px; font-weight:800}
+  .totals .offer{color:var(--red)}
+  .totals .grand{align-items:baseline; color:var(--ink); font-size:18px; border-top:1px solid rgba(222,183,156,.72);
+       margin-top:4px; padding-top:12px}
+  .totals .grand span{color:var(--muted)} .totals .grand strong{font-size:clamp(24px,3vw,30px); color:var(--navy)}
+  /* scoped to the banner id: a bare `.confirmed` selector also matches <body class="confirmed"> and hides the page */
+  #confirmedBanner{display:none; margin:0; padding:12px; border:1px solid rgba(76,130,92,.36); border-radius:8px;
+       color:var(--green); background:rgba(76,130,92,.12); text-align:left; font-size:14px; font-weight:850}
+  body.confirmed #confirmedBanner{display:block}
+  /* idle screen — the main screen stays visible but BLURRED behind a small "press to start" card */
+  #overlay{position:fixed; inset:0; z-index:9; display:flex; align-items:center; justify-content:center; cursor:pointer;
+       background:rgba(49,45,42,.34); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px)}
+  #overlay .card{width:min(calc(100vw - 36px), 460px); padding:28px; border:1px solid var(--border); border-radius:8px;
+       background:rgba(255,255,255,.94); color:var(--navy); text-align:center; display:grid; justify-items:center; gap:16px;
+       box-shadow:var(--shadow)}
+  #overlay h1{font-size:30px; line-height:1.08; margin:0} #overlay p{color:var(--muted); margin:0; font-weight:700}
+  #overlay button{width:100%; border:0; color:#fff; background:var(--red); box-shadow:var(--soft-shadow)}
+  #build{position:fixed; right:9px; bottom:7px; z-index:10; font-size:10px; letter-spacing:.3px;
+       color:#8a7b5e; opacity:.65; pointer-events:none}
+  /* short landscape laptops: compact the orb strip so all 10 cards still fit without scrolling */
+  @media (min-width: 981px) and (max-height: 860px){
+    .orb{width:clamp(68px, 6vw, 108px)}
+    .voice-copy h1{font-size:clamp(14px,1.4vw,18px)}
+    .voice-card{gap:clamp(5px,.7vw,9px)}
+    .hint{display:none}
+  }
+  /* below 980 fitting 10 cards is impractical → stack and allow natural page scroll */
+  @media (max-width: 980px){
+    .kiosk-shell{height:auto; min-height:auto; overflow:visible}
+    .screen-header{align-items:flex-start}
+    .status-chip{max-width:clamp(180px,52vw,520px)}
+    /* stack: orb → live order → menu (keeps the live order high; menu is reference) */
+    .main-grid{grid-template-columns:1fr; grid-template-rows:auto auto auto;
+         grid-template-areas:"stage" "order" "menu"}
+    .order{min-height:300px; max-height:none}
+    .menu{min-height:auto}
+    .menu-grid{grid-template-columns:repeat(3,1fr); grid-auto-rows:auto; height:auto; overflow:visible}
+    .menu-card{grid-template-rows:auto auto}
+    .menu-thumb{aspect-ratio:1; min-height:auto}
+  }
+  @media (max-width: 640px){
+    .kiosk-shell{padding:14px}
+    .screen-header{display:grid}
+    .status-chip{max-width:100%; justify-self:start}
+    .voice-card{padding:14px}
+    .control-row,.ptt,.endbtn{width:100%}
+    .menu-grid{grid-template-columns:repeat(2,1fr)}
+    #build{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .wave i,.orb,.menu-card{animation:none !important; transition:none !important}
+  }
+</style>
+</head>
+<body class="idle">
+  <div class="particles"></div>
+  <div id="build">build 2026-06-22 · oci-cascade</div>
+
+  <main class="kiosk-shell" aria-label="Oracle Coffee Drive-Thru">
+    <header class="screen-header">
+      <div class="brand-cluster">
+        <span class="brand-mark">AI</span>
+        <div>
+          <p class="brand-title">Oracle Coffee</p>
+          <p class="brand-subtitle">Voice drive-thru ordering</p>
+        </div>
+      </div>
+      <div class="status-chip" id="status" aria-live="polite">Tap to begin</div>
+    </header>
+
+    <div class="main-grid">
+      <section class="stage" aria-label="Voice ordering assistant">
+        <div class="voice-card">
+          <div class="orb" aria-hidden="true"><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="voice-copy">
+            <h1>Order naturally from the car</h1>
+            <p class="hint" id="hint">English, Español, Français, हिन्दी and Deutsch supported.</p>
+          </div>
+        </div>
+        <div class="control-row" aria-label="Voice controls">
+          <button id="ptt" class="ptt" title="Optional: hold while you speak in a noisy moment">
+            <span class="button-icon mic" aria-hidden="true"></span><span class="ptt-label">Hold to talk</span>
+          </button>
+          <button id="endBtn" class="endbtn" hidden>
+            <span class="button-icon reset" aria-hidden="true"></span><span class="end-label">Start over / End</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="menu" aria-label="Menu">
+        <div class="menu-head">
+          <h2>Menu</h2>
+          <span class="menu-sizes-note" id="menuSizesNote">Coffees in Small · Medium · Large</span>
+        </div>
+        <div class="menu-grid" id="menuGrid"></div>
+      </section>
+
+      <aside class="order" aria-label="Current order">
+        <div class="order-head">
+          <h2>Your order</h2>
+          <span class="order-count" id="orderCount">0 items</span>
+        </div>
+        <div class="member" id="member"></div>
+        <p class="empty-order" id="emptyOrder">Your coffee order will appear here as the conversation updates.</p>
+        <ul class="lines" id="lines"></ul>
+        <div class="totals" id="totals"></div>
+        <div class="confirmed" id="confirmedBanner">Order confirmed. Thank you.</div>
+      </aside>
+    </div>
+  </main>
+
+  <div id="overlay">
+    <div class="card">
+      <h1>Oracle Coffee Drive-Thru</h1>
+      <p>Press to start the conversation</p>
+      <button id="startBtn">Start conversation</button>
+    </div>
+  </div>
+
+  <audio id="agentAudio" autoplay></audio>
+
+<script>
+const BUILD = 'build 2026-06-22 · oci-cascade';
+console.log('[kiosk] ' + BUILD + ' — each browser tab gets its OWN room/agent/session (no cross-talk); reload rejoins the same room');
+const LK = window.LivekitClient;
+const $ = (id) => document.getElementById(id);
+const body = document.body;
+let room, audioCtx, rafId;
+
+function setState(s, text){ body.classList.remove('idle','listening'); body.classList.add(s); if(text) $('status').textContent = text; }
+
+// Audio-reactive waveform: drive the "O" bars from the agent's live audio (Jarvis-style).
+function setupAnalyser(track){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const src = audioCtx.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64; analyser.smoothingTimeConstant = 0.65;
+    src.connect(analyser);                       // analysis only (the <audio> element plays it)
+    const bars = [...document.querySelectorAll('.wave i')];
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    document.querySelector('.wave').classList.add('live');
+    if (rafId) cancelAnimationFrame(rafId);
+    (function loop(){
+      analyser.getByteFrequencyData(data);
+      let sum = 0;
+      bars.forEach((bar, i) => { const v = data[i*2 + 2] || 0; bar.style.height = (6 + (v/255)*22).toFixed(1)+'cqmin'; sum += v; });
+      body.classList.toggle('speaking', sum/bars.length > 16);
+      rafId = requestAnimationFrame(loop);
+    })();
+  }catch(e){ console.warn('analyser setup failed', e); }
+}
+
+function money(n){ return '£' + Number(n).toFixed(2); }
+
+function setEndLabel(text){
+  const label = document.querySelector('.end-label');
+  if (label) label.textContent = text;
+}
+
+function setPttLabel(text){
+  const label = document.querySelector('.ptt-label');
+  if (label) label.textContent = text;
+}
+
+function setOrderCount(lines){
+  const count = (lines || []).reduce((sum, line) => sum + Number(line.qty || 0), 0);
+  $('orderCount').textContent = count === 1 ? '1 item' : `${count} items`;
+}
+
+function renderMember(member){
+  const el = $('member');
+  if (!member){
+    el.classList.remove('is-visible');
+    el.innerHTML = '';
+    return;
+  }
+  el.classList.add('is-visible');
+  const title = document.createElement('strong');
+  title.textContent = member.is_birthday ? `${member.name} has a birthday reward` : `Member: ${member.name}`;
+  const detail = document.createElement('span');
+  detail.textContent = member.is_birthday ? 'Birthday drink on us — applied automatically.' : 'Loyalty profile applied to this order.';
+  el.innerHTML = '';
+  el.append(title, detail);
+}
+
+function renderLine(line){
+  const li = document.createElement('li');
+  const isFree = Number(line.discount || 0) > 0 || Number(line.line_total || 0) === 0;
+  if (isFree) li.className = 'free';
+
+  const qty = document.createElement('span');
+  qty.className = 'line-qty';
+  qty.textContent = `x${line.qty || 1}`;
+
+  const main = document.createElement('span');
+  main.className = 'line-main';
+  const name = document.createElement('strong');
+  const size = line.size_name ? `${line.size_name} ` : '';
+  name.textContent = `${size}${line.name || 'Item'}${isFree ? ' (free)' : ''}`;
+  const meta = document.createElement('span');
+  const mods = (line.modifiers || []).filter(Boolean).join(', ');
+  meta.textContent = mods || (line.discount_reason ? 'Offer applied' : 'Standard');
+  main.append(name, meta);
+
+  const price = document.createElement('span');
+  price.className = 'line-price';
+  price.textContent = isFree ? 'Free' : money(line.line_total || 0);
+
+  li.append(qty, main, price);
+  return li;
+}
+
+// ---- Menu board: static reference grid; lights up items as they enter the live order ----
+let _lastLines = [];
+const MENU_FALLBACK = {
+  drinks:[
+    {id:'flat_white',name:'Flat White',base_price:3.20,out_of_stock:false},
+    {id:'cappuccino',name:'Cappuccino',base_price:3.20,out_of_stock:false},
+    {id:'americano',name:'Americano',base_price:2.80,out_of_stock:false},
+    {id:'latte',name:'Latte',base_price:3.40,out_of_stock:false},
+    {id:'cortado',name:'Cortado',base_price:3.20,out_of_stock:true},
+    {id:'hot_chocolate',name:'Hot Chocolate',base_price:3.50,out_of_stock:false}
+  ],
+  sizes:[{code:'S',name:'Small',surcharge:0},{code:'M',name:'Medium',surcharge:0.40},{code:'L',name:'Large',surcharge:0.80}],
+  pastries:[
+    {id:'chocolate_brownie',name:'Chocolate Brownie',price:2.80,out_of_stock:false},
+    {id:'cookie',name:'Cookie',price:2.20,out_of_stock:false},
+    {id:'banana_bread',name:'Banana Bread',price:2.80,out_of_stock:false},
+    {id:'muffin',name:'Muffin',price:2.60,out_of_stock:false}
+  ]
+};
+
+function menuCard(id, name, priceText, oos){
+  const card = document.createElement('article');
+  card.className = 'menu-card' + (oos ? ' oos' : '');
+  card.dataset.itemId = id;
+
+  const thumb = document.createElement('div');
+  thumb.className = 'menu-thumb';
+  const img = document.createElement('img');
+  img.src = 'frontend/menu/' + id + '.webp';
+  img.alt = name; img.loading = 'lazy'; img.decoding = 'async'; img.width = 240; img.height = 240;
+  img.addEventListener('error', () => { img.style.visibility = 'hidden'; });  // a missing asset must not look broken
+  thumb.appendChild(img);
+  const tick = document.createElement('span');
+  tick.className = 'order-tick'; tick.setAttribute('aria-hidden', 'true'); tick.textContent = '✓';
+  thumb.appendChild(tick);
+  if (oos){
+    const badge = document.createElement('span');
+    badge.className = 'oos-badge'; badge.textContent = 'Out of stock';
+    thumb.appendChild(badge);
+  }
+
+  const row = document.createElement('div');
+  row.className = 'menu-name-row';
+  const nm = document.createElement('strong'); nm.className = 'menu-name'; nm.textContent = name;
+  const pr = document.createElement('span'); pr.className = 'menu-price'; pr.textContent = priceText;
+  row.append(nm, pr);
+
+  card.append(thumb, row);
+  return card;
+}
+
+function renderMenuBoard(data){
+  const grid = $('menuGrid');
+  if (!grid) return;
+  const cards = [];
+  (data.drinks || []).forEach(d => cards.push(menuCard(d.id, d.name, 'from ' + money(d.base_price), !!d.out_of_stock)));
+  (data.pastries || []).forEach(p => cards.push(menuCard(p.id, p.name, money(p.price), !!p.out_of_stock)));
+  grid.replaceChildren(...cards);
+  const sizes = (data.sizes || []).map(s => s.name).filter(Boolean).join(' · ');
+  if (sizes) $('menuSizesNote').textContent = 'Coffees in ' + sizes;
+  highlightMenu(_lastLines);                   // re-apply highlight to the freshly-built cards
+}
+
+async function loadMenu(){
+  try{
+    const r = await fetch('api/menu', {cache:'no-store'});   // relative path works under /voice-drivethru too
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    renderMenuBoard(await r.json());
+  }catch(e){
+    console.warn('[menu] /api/menu failed — using built-in fallback', e);
+    renderMenuBoard(MENU_FALLBACK);
+  }
+}
+
+function highlightMenu(lines){
+  _lastLines = lines || [];
+  const active = new Set(_lastLines.map(l => l.item_id).filter(Boolean));
+  document.querySelectorAll('.menu-card').forEach(c =>
+    c.classList.toggle('in-order', active.has(c.dataset.itemId)));
+}
+
+loadMenu();
+
+function showIdle(){           // booth idle: clear the order + show the blurred "press to start" card
+  endReset();
+  $('endBtn').hidden = true;
+  $('lines').innerHTML=''; $('totals').innerHTML='';
+  renderMember(null);
+  setOrderCount([]);
+  highlightMenu([]);
+  $('emptyOrder').hidden = false;
+  body.classList.remove('confirmed');
+  setState('idle','Press to start');
+  $('overlay').style.display='flex';
+}
+function renderOrder(env){
+  try{
+    // The backend is the single source of truth for the idle transition: 'attract' (after a
+    // reset) blurs the booth back to "press to start". No frontend timer.
+    if (env.type === 'attract'){ showIdle(); return; }
+    // 'session_start' fires once when the agent job boots — ignore it so it can't re-blur the
+    // screen during the press→greet handshake. The initial idle screen is the default overlay.
+    if (env.type === 'session_start'){ return; }
+    const p = env.payload || {};
+    // A snapshot with items means we're mid-conversation (incl. a reloaded kiosk resync) —
+    // make sure the idle overlay is down and the End control is reachable.
+    if ((p.lines||[]).length){ $('overlay').style.display='none'; $('endBtn').hidden = false; }
+    renderMember(p.member);
+    const ul = $('lines'); ul.innerHTML = '';
+    (p.lines||[]).forEach(l => ul.appendChild(renderLine(l)));
+    $('emptyOrder').hidden = (p.lines||[]).length > 0;
+    setOrderCount(p.lines || []);
+    highlightMenu(p.lines || []);
+    const t = $('totals');
+    if ((p.lines||[]).length){
+      t.innerHTML = `<div class="row"><span>Subtotal</span><strong>${money(p.subtotal)}</strong></div>`
+        + (p.discount_total>0?`<div class="row offer"><span>Offers</span><strong>-${money(p.discount_total)}</strong></div>`:'')
+        + `<div class="row grand"><span>Total</span><strong>${money(p.total)}</strong></div>`;
+    } else { t.innerHTML=''; }
+    if (env.type === 'order_confirmed' || p.confirmed){
+      body.classList.add('confirmed');     // banner stays visible until the backend's 'attract' (~6s) blurs to idle
+    } else {
+      body.classList.remove('confirmed');
+    }
+  }catch(e){ console.error('renderOrder error', e); }
+}
+
+let agentId = null;
+function findAgent(){          // the agent participant's identity starts with "agent"
+  if (!room) return null;
+  for (const [id] of room.remoteParticipants){ if (id.startsWith('agent')){ agentId=id; return id; } }
+  return null;
+}
+async function agentRpc(method, {retries=30, gap=400}={}){
+  // Retries absorb the first-customer race: kiosk connects -> agent job dispatches -> registers RPC.
+  // 1401 RECIPIENT_NOT_FOUND (agent not in room yet) and 1400 UNSUPPORTED_METHOD (handler not
+  // registered yet) are expected during that window, so we keep trying (~30×400ms ≈ 12s). Every tab
+  // is now its OWN fresh room, so the first press always pays a COLD agent-subprocess spawn — the
+  // wider budget (vs the old resident-booth agent) absorbs that cold start on a loaded VM.
+  for (let i=0;i<retries;i++){
+    if (!agentId) findAgent();
+    if (agentId && room){
+      try{
+        return await room.localParticipant.performRpc({destinationIdentity:agentId, method, payload:'', responseTimeout:8000});
+      }catch(e){
+        const code = e && (e.code ?? e.rpcCode);
+        if (code !== 1400 && code !== 1401 && code !== undefined) throw e;
+      }
+    }
+    await new Promise(r => setTimeout(r, gap));
+  }
+  throw new Error('agentRpc('+method+') gave up');
+}
+
+// One unique LiveKit room per browser TAB. sessionStorage (NOT localStorage) is deliberate: a
+// reload of THIS tab reuses the SAME room id, so it rejoins the still-alive agent which re-syncs the
+// screen; meanwhile every new tab/device gets its OWN room -> its OWN auto-dispatched agent, session,
+// audio and order. The 'booth-' prefix keeps the id within the server's kiosk-room guard.
+// crypto.randomUUID() needs a secure context (https / wss / http://localhost); the fallback covers a
+// plain http://<LAN-IP> test box (e.g. a phone on venue Wi-Fi) where randomUUID is undefined.
+function roomId(){
+  const KEY = 'voicedt_room';
+  let id = sessionStorage.getItem(KEY);
+  if (!id){
+    let rand;
+    try { rand = crypto.randomUUID(); }
+    catch(_){
+      const b = (self.crypto && crypto.getRandomValues) ? crypto.getRandomValues(new Uint8Array(8)) : null;
+      rand = b ? [...b].map(x => x.toString(16).padStart(2,'0')).join('')
+               : (Date.now().toString(36) + Math.random().toString(36).slice(2,10));
+    }
+    id = 'booth-' + rand;
+    sessionStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
+async function connect(){     // establish the LiveKit room ONCE; reused for the whole booth session
+  if (room) return;
+  const r = await fetch('api/token', {method:'POST', headers:{'Content-Type':'application/json'},
+    // Per-tab unique room (roomId()), fixed identity 'kiosk'. The agent pins its mic input to this
+    // identity, and since each tab is its OWN room there is exactly one kiosk per room — no identity
+    // collision, no cross-talk. A reload rejoins the SAME room id (sessionStorage) and re-links as the
+    // same participant so the live agent re-syncs the screen.
+    body: JSON.stringify({room:roomId(), identity:'kiosk', name:'Booth Kiosk'})});
+  const {token, url} = await r.json();
+  room = new LK.Room({
+    adaptiveStream:true, dynacast:true,
+    // kill speaker->mic self-echo (laptop & booth use a speaker, not headphones)
+    audioCaptureDefaults:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true },
+  });
+  room.on(LK.RoomEvent.DataReceived, (payload, _p, _k, topic) => {
+    if (topic==='order'){ try{ renderOrder(JSON.parse(new TextDecoder().decode(payload))); }catch(e){} }
+  });
+  room.on(LK.RoomEvent.TrackSubscribed, (track) => {
+    if (track.kind===LK.Track.Kind.Audio){ track.attach($('agentAudio')); setupAnalyser(track); }
+  });
+  room.on(LK.RoomEvent.ActiveSpeakersChanged, (speakers) => {
+    const agentSpeaking = speakers.some(s => s.identity!==room.localParticipant.identity);
+    $('status').textContent = agentSpeaking ? 'Speaking…' : 'Hold to talk';
+  });
+  room.on(LK.RoomEvent.ParticipantConnected, (p) => { if (p.identity.startsWith('agent')) agentId=p.identity; });
+  room.on(LK.RoomEvent.ParticipantDisconnected, (p) => { if (p.identity===agentId) agentId=null; });
+  room.on(LK.RoomEvent.Disconnected, () => { room=null; agentId=null; showIdle(); });
+  try{
+    await room.connect(url, token);
+    await room.localParticipant.setMicrophoneEnabled(false);   // muted by default — hold the PTT button to talk
+    findAgent();
+  }catch(e){ try{ room.disconnect(); }catch(_){} room=null; agentId=null; throw e; }
+}
+
+async function pressStart(){   // "press to start the conversation" — connect (once) then greet
+  $('overlay').style.display='none';
+  $('endBtn').hidden = false; endReset();
+  setState('listening','Connecting…');
+  try{
+    await connect();
+    await agentRpc('begin');                 // backend greets the new customer
+    setState('listening','Hold the mic button to talk');
+  }catch(e){
+    console.error(e);
+    showIdle(); setState('idle','Connection failed — press to retry');
+  }
+}
+
+// Force end / start-over — two-step so a stray tap can't end a live order: first tap arms the
+// button ("Tap again to end"), a second tap within 4s sends reset. Backend reset publishes
+// 'attract', which drives showIdle() (single source of truth for the idle transition).
+let endArmed = false, endTimer = null;
+function endReset(){
+  endArmed = false;
+  if (endTimer){ clearTimeout(endTimer); endTimer=null; }
+  const b = $('endBtn'); b.classList.remove('confirm'); setEndLabel('Start over / End');
+}
+function onEnd(){
+  const b = $('endBtn');
+  if (!endArmed){
+    endArmed = true; b.classList.add('confirm'); setEndLabel('Tap again to end');
+    endTimer = setTimeout(endReset, 4000);
+    return;
+  }
+  endReset();
+  setState('listening','Ending…');
+  agentRpc('reset').catch(e => console.error(e));
+}
+
+$('startBtn').addEventListener('click', pressStart);
+$('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') pressStart(); });
+$('endBtn').addEventListener('click', onEnd);
+// ?preview — show the branded screen (no mic/connect) for screenshots & booth dry-runs
+if (new URLSearchParams(location.search).has('preview')){
+  $('overlay').style.display='none';
+  setState('listening','Listening… what can I get you?');
+  renderOrder({type:'order_state', payload:{ lines:[
+    {qty:1,item_id:'flat_white',name:'Flat White',size_name:'Large',modifiers:['Oat'],line_total:4.40},
+    {qty:1,item_id:'chocolate_brownie',name:'Chocolate Brownie',modifiers:[],discount:2.80,discount_reason:'2drinks_free_pastry',line_total:0}],
+    member:{name:'James Okafor',is_birthday:true}, subtotal:7.20, discount_total:2.80, total:4.40, confirmed:false}});
+}
+
+// PTT = the input-audio gate: the mic is MUTED by default and only admits the customer's voice
+// while the button is held, so babble/echo can't leak in. Releasing re-mutes after a brief tail
+// (~0.5s) so the model's server-side VAD still hears the end of the sentence and commits the turn.
+const ptt = $('ptt');
+let muteTimer = null;
+let pttHeld = false;
+const setMic = (on) => { if (room && room.localParticipant) room.localParticipant.setMicrophoneEnabled(on); };
+
+// Shared press/release — driven identically by the on-screen button AND the Enter key.
+function pttStart(){
+  if (pttHeld) return;                 // ignore repeats / a second input source while already held
+  pttHeld = true;
+  if (muteTimer){ clearTimeout(muteTimer); muteTimer=null; }
+  setMic(true); body.classList.add('isolating'); ptt.classList.add('held'); setPttLabel('Listening...');
+}
+function pttStop(){
+  if (!pttHeld) return;
+  pttHeld = false;
+  body.classList.remove('isolating'); ptt.classList.remove('held'); setPttLabel('Hold to talk');
+  muteTimer = setTimeout(() => { setMic(false); muteTimer=null; }, 500);   // brief tail so the last word isn't clipped
+}
+
+// On-screen button (pointer)
+const pttDown = (e) => { e.preventDefault(); try{ ptt.setPointerCapture(e.pointerId); }catch(_){} pttStart(); };   // capture keeps the release even if the finger slides off
+const pttUp   = () => { pttStop(); };
+ptt.addEventListener('pointerdown', pttDown);
+ptt.addEventListener('pointerup', pttUp);
+ptt.addEventListener('pointercancel', pttUp);
+
+// Enter-key push-to-talk — identical effect to holding the button.
+// Only active when the conversation is live (i.e. the idle/start overlay is down).
+const overlayDown = () => $('overlay').style.display === 'none';
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.repeat) return;    // e.key covers main + numpad Enter; e.repeat filters OS auto-repeat
+  if (!overlayDown()) return;                    // ignore on the idle / start screen
+  e.preventDefault();                            // stop Enter from "clicking" a focused button (e.g. End)
+  pttStart();
+});
+window.addEventListener('keyup', (e) => {
+  if (e.key !== 'Enter') return;                 // no overlay guard: always release if we were holding
+  e.preventDefault();
+  pttStop();
+});
+window.addEventListener('blur', pttStop);        // safety: never leave the mic stuck on if focus is lost mid-hold
+</script>
+</body>
+</html>

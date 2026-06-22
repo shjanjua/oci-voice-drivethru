@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Oracle Coffee — membership QR poster (A4)</title>
+<style>
+  /* Palette + tokens lifted verbatim from frontend/index.html so the print
+     collateral reads as a physical extension of the kiosk screen. */
+  :root{
+    --canvas:#f3e8d2; --panel:#f8efd9; --teal-panel:#c7dfdf; --border:#deb79c;
+    --teal:#467173; --teal-lt:#89b2b0; --navy:#1b4550; --red:#d3452f;
+    --sienna:#deb068; --ink:#262322; --muted:#6b6258; --green:#467146;
+    --shadow:0 22px 70px rgba(49,45,42,.14); --soft-shadow:0 12px 32px rgba(49,45,42,.1);
+  }
+  *{box-sizing:border-box}
+  @page{size:A4; margin:0}
+  html,body{margin:0; padding:0}
+  body{
+    width:210mm; height:297mm; overflow:hidden;
+    font-family:"Oracle Sans","Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+    color:var(--ink); -webkit-font-smoothing:antialiased;
+    background:
+      linear-gradient(rgba(236,134,106,.34) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(236,134,106,.34) 1px, transparent 1px),
+      linear-gradient(180deg, var(--canvas) 0 72%, var(--teal-panel) 72% 100%);
+    background-size:9mm 9mm, 9mm 9mm, 100% 100%;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .shell{
+    position:relative; width:calc(210mm - 16mm); height:calc(297mm - 16mm); margin:8mm;
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:14mm 12mm 12mm; overflow:hidden;
+    border:1px solid var(--border); border-radius:8px;
+    background:radial-gradient(circle at 88% 6%, rgba(240,204,113,.24), transparent 24%),
+               linear-gradient(180deg, rgba(199,223,223,.88) 0%, rgba(248,239,217,.96) 72% 100%);
+    box-shadow:var(--shadow);
+  }
+  .shell::before{
+    content:""; position:absolute; top:-30mm; left:8mm; width:52mm; height:86mm; z-index:0;
+    background:url('../../frontend/particles.svg') center/contain no-repeat;
+    opacity:.16; transform:rotate(154deg);
+  }
+  .shell>*{position:relative; z-index:1}
+
+  .brand-cluster{display:flex; align-items:center; gap:6mm; margin-top:2mm}
+  .brand-mark{display:grid; place-items:center; width:17mm; height:17mm; border-radius:8px;
+    color:#fff; background:var(--red); font-size:7mm; font-weight:800; box-shadow:var(--soft-shadow)}
+  .brand-text{text-align:left}
+  .brand-title{margin:0; font-size:11.5mm; font-weight:850; line-height:1.05; color:var(--ink)}
+  .brand-subtitle{margin:1.2mm 0 0; color:var(--muted); font-size:4.6mm; font-weight:700}
+
+  /* the kiosk's idle waveform, frozen */
+  .wave{display:flex; align-items:center; gap:1.6mm; height:8mm; margin:9mm 0 0}
+  .wave i{width:1.9mm; border-radius:1mm; background:var(--teal)}
+  .wave i:nth-child(1){height:3.2mm}.wave i:nth-child(2){height:5.4mm}
+  .wave i:nth-child(3){height:7.6mm}.wave i:nth-child(4){height:5.8mm}
+  .wave i:nth-child(5){height:7.2mm}.wave i:nth-child(6){height:4.4mm}
+  .wave i:nth-child(7){height:3mm}
+
+  h1{margin:8mm 0 0; color:var(--navy); font-size:13mm; font-weight:900; line-height:1.06;
+     letter-spacing:-.2mm; max-width:160mm}
+  .lede{margin:6mm 0 0; max-width:148mm; color:var(--muted); font-size:5.6mm; font-weight:650; line-height:1.5}
+  .lede strong{color:var(--ink); font-weight:850}
+
+  .qr-card{position:relative; margin:9mm 0 0; padding:7mm; border-radius:8px;
+    background:#fff; border:1px solid rgba(222,183,156,.66); box-shadow:var(--soft-shadow)}
+  .qr-card img{display:block; width:96mm; height:96mm}
+  .qr-mark{position:absolute; inset:0; display:grid; place-items:center; pointer-events:none}
+  .qr-mark span{display:grid; place-items:center; width:17mm; height:17mm; border-radius:8px;
+    color:#fff; background:var(--red); font-size:7mm; font-weight:800;
+    box-shadow:0 0 0 2.4mm #fff}
+
+  .url-chip{display:inline-flex; align-items:center; margin-top:7mm; padding:3mm 7mm;
+    border:1px solid rgba(0,122,150,.44); border-radius:999px; color:#005f73;
+    background:rgba(199,223,223,.82); box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);
+    font-size:5mm; font-weight:800}
+
+  .footer{margin-top:auto; display:flex; align-items:center; gap:3mm;
+    color:var(--muted); font-size:3.9mm; font-weight:700}
+  .footer .dot{width:1.4mm; height:1.4mm; border-radius:50%; background:var(--sienna)}
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="brand-cluster">
+      <span class="brand-mark">AI</span>
+      <div class="brand-text">
+        <p class="brand-title">Oracle Coffee</p>
+        <p class="brand-subtitle">Voice drive-thru ordering</p>
+      </div>
+    </div>
+
+    <div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+    <h1>Join our café membership</h1>
+
+    <p class="lede">Scan the QR code to join our café membership for a
+      <strong>personalised experience</strong> and a <strong>special birthday treat</strong>.</p>
+
+    <div class="qr-card">
+      <img src="qr-voice-order.png" alt="QR code — scan to join the Oracle Coffee membership" />
+      <div class="qr-mark"><span>AI</span></div>
+    </div>
+
+    <span class="url-chip">oracle-aicoe.com/voice-order</span>
+
+    <div class="footer">
+      <span>Free to join</span><span class="dot"></span>
+      <span>Takes 30 seconds</span><span class="dot"></span>
+      <span>We'll greet you by name</span>
+    </div>
+  </div>
+</body>
+</html>
