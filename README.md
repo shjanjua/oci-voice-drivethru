@@ -39,6 +39,19 @@ Turn-taking (Silero VAD + the LiveKit turn-detector) and WebRTC transport are ha
 - **Promotions, applied live** — buy 2 drinks → cheapest pastry free; birthday → cheapest drink free.
   Discounts show in the running total as the order is built, not only at confirmation.
 
+## Membership sign-up
+
+Attendees join the loyalty programme in seconds by scanning a QR code — no app, just a phone. They enter
+their name (and optionally how to pronounce it) and a preferred language, and instantly get a **4-digit
+member number** to say at the booth. The barista then greets them by name, offers to continue in their
+preferred language, and gives birthday members a free drink. Members are stored in Oracle Autonomous
+Database; with no DB configured the booth still runs in guest mode.
+
+<p align="center"><img src="docs/signup-preview.png" alt="The QR membership sign-up page" width="340"></p>
+
+The page is served at `/signup` (the QR target) and submits to `POST /api/signup`; printable QR posters
+live in [`deploy/booth-qr/`](deploy/booth-qr/).
+
 ## Architecture
 
 One **persistent `AgentSession`** owns the room, audio, order state, and tools. `agent/brain.py`
